@@ -1,3 +1,4 @@
+from flask_cors import CORS
 from flask import Flask, request, jsonify
 import pdfplumber
 import pytesseract
@@ -9,7 +10,7 @@ import os
 import re
 
 app = Flask(__name__)
-
+CORS(app)  # এটি সব ধরণের সোর্স থেকে রিকোয়েস্ট গ্রহণ করার অনুমতি দেয়
 # ==========================================
 # 1. OCR এবং ইমেজ প্রসেসিং সেকশন
 # ==========================================

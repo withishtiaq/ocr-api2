@@ -4,3 +4,4 @@ pdfplumber
 pytesseract
 pdf2image
 Pillow
+flask-cors

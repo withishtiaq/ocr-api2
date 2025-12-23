@@ -19,4 +19,4 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Render এর পোর্টে অ্যাপ রান করা
-CMD gunicorn app:app --bind 0.0.0.0:$PORT
+CMD gunicorn --workers 1 --threads 4 --timeout 120 app:app --bind 0.0.0.0:$PORT

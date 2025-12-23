@@ -40,15 +40,28 @@ def extract_with_pdfplumber(pdf_path):
         return "", ""
 
 def extract_with_pytesseract(pdf_path):
+    """Extract text using pytesseract with memory optimization."""
     try:
-        images = convert_from_path(pdf_path)
+        # Memory Optimization: DPI কমিয়ে 200 করা হলো এবং JPEG ফরম্যাট ব্যবহার করা হলো
+        images = convert_from_path(pdf_path, dpi=200, fmt='jpeg') 
+        
         full_text = []
         for img in images:
+            # ইমেজ সাইজ ছোট করা (মেমোরি বাঁচাতে)
+            if img.width > 2000:
+                ratio = 2000 / float(img.width)
+                new_height = int((float(img.height) * float(ratio)))
+                img = img.resize((2000, new_height), Image.LANCZOS)
+
             img = preprocess_image(img)
+            # Perform OCR
             text = pytesseract.image_to_string(img, lang='ben+eng')
-            if text.strip(): full_text.append(text)
+            if text.strip():
+                full_text.append(text)
+                
         return '\n\n'.join(full_text)
-    except Exception:
+    except Exception as e:
+        print(f"pytesseract error: {e}")
         return ""
 
 def clean_text(text):

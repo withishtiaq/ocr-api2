@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 import pdfplumber
 import pytesseract
+import gc  # Garbage Collector (মেমোরি পরিষ্কার করার জন্য)
+from pdf2image import pdfinfo_from_path # পেজ সংখ্যা গোনার জন্য
 from pdf2image import convert_from_path
 from PIL import Image, ImageEnhance
 import os
@@ -40,28 +42,54 @@ def extract_with_pdfplumber(pdf_path):
         return "", ""
 
 def extract_with_pytesseract(pdf_path):
-    """Extract text using pytesseract with memory optimization."""
+    """Extract text page-by-page to save memory on Render Free Tier."""
+    full_text = []
     try:
-        # Memory Optimization: DPI কমিয়ে 200 করা হলো এবং JPEG ফরম্যাট ব্যবহার করা হলো
-        images = convert_from_path(pdf_path, dpi=200, fmt='jpeg') 
+        # ১. আগে মোট পেজ সংখ্যা বের করা
+        info = pdfinfo_from_path(pdf_path)
+        max_pages = info["Pages"]
         
-        full_text = []
-        for img in images:
-            # ইমেজ সাইজ ছোট করা (মেমোরি বাঁচাতে)
-            if img.width > 2000:
-                ratio = 2000 / float(img.width)
-                new_height = int((float(img.height) * float(ratio)))
-                img = img.resize((2000, new_height), Image.LANCZOS)
-
-            img = preprocess_image(img)
-            # Perform OCR
-            text = pytesseract.image_to_string(img, lang='ben+eng')
-            if text.strip():
-                full_text.append(text)
+        # ২. লুপ চালিয়ে একবারে একটি করে পেজ প্রসেস করা
+        for page_num in range(1, max_pages + 1):
+            print(f"Processing page {page_num} of {max_pages}...")
+            
+            # ৩. শুধু নির্দিষ্ট পেজটি লোড করা (DPI 150, Grayscale=True মেমোরি বাঁচাবে)
+            try:
+                images = convert_from_path(
+                    pdf_path, 
+                    dpi=150, 
+                    first_page=page_num, 
+                    last_page=page_num, 
+                    grayscale=True,
+                    fmt='jpeg'
+                )
                 
+                if images:
+                    img = images[0] # লিস্টে একটাই ইমেজ থাকবে
+                    
+                    # কনট্রাস্ট বাড়ানো (সাদা-কালো মোডে)
+                    enhancer = ImageEnhance.Contrast(img)
+                    img = enhancer.enhance(2.0)
+                    
+                    # OCR চালানো
+                    text = pytesseract.image_to_string(img, lang='ben+eng')
+                    if text.strip():
+                        full_text.append(text)
+                    
+                    # ৪. মেমোরি ক্লিন করা (খুবই গুরুত্বপূর্ণ)
+                    del img
+                    del enhancer
+                    del images
+                    gc.collect() # জোর করে মেমোরি খালি করা
+                    
+            except Exception as e:
+                print(f"Error on page {page_num}: {e}")
+                continue # এক পেজে সমস্যা হলে পরের পেজে চলে যাবে
+
         return '\n\n'.join(full_text)
+        
     except Exception as e:
-        print(f"pytesseract error: {e}")
+        print(f"Critical pytesseract error: {e}")
         return ""
 
 def clean_text(text):

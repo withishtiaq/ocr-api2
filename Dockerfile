@@ -19,4 +19,6 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Render এর পোর্টে অ্যাপ রান করা
-CMD gunicorn --workers 1 --threads 4 --timeout 120 app:app --bind 0.0.0.0:$PORT
+#CMD gunicorn --workers 1 --threads 4 --timeout 120 app:app --bind 0.0.0.0:$PORT
+# Timeout বাড়িয়ে 300 সেকেন্ড (৫ মিনিট) করা হলো
+CMD gunicorn --workers 1 --threads 4 --timeout 300 --keep-alive 300 app:app --bind 0.0.0.0:$PORT
